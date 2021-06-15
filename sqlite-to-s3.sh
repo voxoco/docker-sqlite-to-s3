@@ -15,11 +15,12 @@ echo $S3_KEY_PREFIX
 export DATABASE_PATH=${DATABASE_PATH:-/data/sqlite3.db}
 export BACKUP_PATH=${BACKUP_PATH:-${DATABASE_PATH}.bak}
 export DATETIME=$(date "+%Y%m%d%H%M%S")
+export RANDOMIZER=${RANDOM:0:3}
 
 # Add this script to the crontab and start crond
 cron() {
   echo "Starting backup cron job with frequency '$1'"
-  echo "$1 $0 backup" > /var/spool/cron/crontabs/root
+  echo "$1 $0 sleep $RANDOMIZER backup" > /var/spool/cron/crontabs/root
   crond -f
 }
 
@@ -52,24 +53,21 @@ backup() {
 
 # Pull down the latest backup from S3 and restore it to the database
 restore() {
-  # Remove old backup file
-  if [ -e $BACKUP_PATH ]; then
-    echo "Removing out of date backup"
-    rm $BACKUP_PATH
-  fi
   # Get backup file from S3
   echo "Downloading latest backup from S3"
   if aws s3 cp s3://${S3_BUCKET}/${S3_KEY_PREFIX}latest.bak $BACKUP_PATH; then
     echo "Downloaded"
-  else
-    echo "Failed to download latest backup"
-    exit 1
-  fi
 
-  # Restore database from backup file
-  echo "Running restore"
-  mv $BACKUP_PATH $DATABASE_PATH
-  echo "Done"
+    # Restore database from backup file
+    echo "Running restore"
+    mv $BACKUP_PATH $DATABASE_PATH
+    echo "Done"
+  else
+    echo "Failed to download latest backup. Adding empty file and exiting"
+    touch $DATABASE_PATH
+    echo "Done"
+    exit 0
+  fi
 
 }
 
