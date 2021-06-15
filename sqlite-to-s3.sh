@@ -27,7 +27,7 @@ cron() {
 backup() {
   # Dump database to file
   echo "Backing up $DATABASE_PATH to $BACKUP_PATH"
-  sqlite3 $DATABASE_PATH .dump > $BACKUP_PATH
+  sqlite3 $DATABASE_PATH ".backup $BACKUP_PATH"
   if [ $? -ne 0 ]; then
     echo "Failed to backup $DATABASE_PATH to $BACKUP_PATH"
     exit 1
@@ -44,12 +44,6 @@ backup() {
     echo "Backup file copied to s3://${S3_BUCKET}/${S3_KEY_PREFIX}latest.bak"
   else
     echo "Backup file failed to upload"
-    exit 1
-  fi
-  if aws s3api copy-object --copy-source ${S3_BUCKET}/${S3_KEY_PREFIX}latest.bak --key ${S3_KEY_PREFIX}${DATETIME}.bak --bucket $S3_BUCKET; then
-    echo "Backup file copied to s3://${S3_BUCKET}/${S3_KEY_PREFIX}${DATETIME}.bak"
-  else
-    echo "Failed to create timestamped backup"
     exit 1
   fi
 
@@ -74,24 +68,7 @@ restore() {
 
   # Restore database from backup file
   echo "Running restore"
-  if [ -e $DATABASE_PATH ]; then
-    echo "Moving out of date database aside"
-    mv $DATABASE_PATH ${DATABASE_PATH}.old
-  fi
-  if sqlite3 $DATABASE_PATH < $BACKUP_PATH; then
-    echo "Successfully restored"
-    if [ -e ${DATABASE_PATH}.old ]; then
-      echo "Cleaning up out of date database"
-      rm ${DATABASE_PATH}.old
-    fi
-  else
-    echo "Restore failed"
-    if [ -e ${DATABASE_PATH}.old ]; then
-      echo "Moving out of date database back, hopefully it's better than nothing"
-      mv ${DATABASE_PATH}.old $DATABASE_PATH
-    fi
-    exit 1
-  fi
+  mv $BACKUP_PATH $DATABASE_PATH
   echo "Done"
 
 }

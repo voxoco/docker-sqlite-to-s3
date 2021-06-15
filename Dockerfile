@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM alpine:3.13
 MAINTAINER Jacob Tomlinson <jacob@tom.linson.uk>
 
 # Install system dependancies
